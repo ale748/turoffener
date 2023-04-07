@@ -60,10 +60,13 @@ uint32_t timecount = 0;
 uint32_t timeoutCount=0;
 uint8_t swdtime=0;
 
+
+//used with delay function (1ms)
+#define OPEN_TIME 800 //800 ms
+
+
+// used with timer (100us)
 #define RING_TIME 40000 //4000 ms
-#define PICK_UP_TIME 5000 //500 ms
-#define OPEN_TIME 10000 //1000 ms
-#define HANG_UP_TIME 5000 //500 ms
 #define RING_TIMEOUT 1000 //100 ms
 #define WAIT_TIMEOUT 600000 //60000 ms
 #define SWD_TIME 20000 //2000 ms
@@ -141,15 +144,6 @@ int main(void)
 
 		  }
 	  }else{
-//		  if (lastState != state_machine){
-//			Serial.printf ("state machine = %d\n",state_machine);
-//			lastState = state_machine;
-//		  }
-//		  if (updatevar){
-//
-//			Serial.printf("updatevar = %d\ntime = %d\nfirstime = %d\nlastime = %d\nringpin = %d\n",updatevar,timecount,ringDet.first_time_change,ringDet.last_time_change,digitalRead(RING_DET_PIN)==HIGH?1:0);
-//			updatevar=0;
-//		  }
 
 		  switch (state_machine){
 			case 0:
@@ -157,30 +151,20 @@ int main(void)
 			  if (timecount-ringDet.first_time_change > RING_TIME){
 				state_machine = 1;
 				ringDet.state=0;
-//				Serial.println("Picking up");
-				//HAL_GPIO_WritePin(PICK_UP_OUT_GPIO_Port, PICK_UP_OUT_Pin, GPIO_PIN_RESET);
 
-				//HAL_Delay(PICK_UP_TIME);
-//				Serial.println("Pushing Opening Door Button");
+				//pressing button for OPEN_TIME
 				HAL_GPIO_WritePin(OPEN_OUT_GPIO_Port, OPEN_OUT_Pin, GPIO_PIN_RESET);
-
-
 				HAL_Delay(OPEN_TIME);
-//				Serial.println("Releasing Opening Door Button");
 				HAL_GPIO_WritePin(OPEN_OUT_GPIO_Port, OPEN_OUT_Pin, GPIO_PIN_SET);
-//				digitalWrite(OPEN_DOOR_PIN,LOW);
-				HAL_Delay(HANG_UP_TIME);
 
-//				Serial.println("Hanging Up");
-				//HAL_GPIO_WritePin(PICK_UP_OUT_GPIO_Port, PICK_UP_OUT_Pin, GPIO_PIN_SET);
-
-				//state_machine = 0;
+				//starting the timer for reactivation
 				timeoutCount=timecount;
 
 
 			  }
 			  break;
 			case 1:
+				//if time for reactivation has passed reset state_machine
 				if (timecount-timeoutCount>WAIT_TIMEOUT){
 					state_machine=0;
 				}
@@ -329,13 +313,14 @@ void ring_det_isr(){
 	uint8_t pinstate = HAL_GPIO_ReadPin(RING_DET_GPIO_Port, RING_DET_Pin)==1? 1:0;
 	  switch (state_machine){
 	    case 0:
+	    	//if the ring detect is high and it was not high before
 	    if (pinstate && !ringDet.state){
 	      ringDet.first_time_change = timecount;
 	      ringDet.state = 1;
-//	      updatevar=2;
 	    }else if(!pinstate && ringDet.state){
+	    	//if the ring detect falls start counter to time out
 	      ringDet.last_time_change = timecount;
-//	      updatevar=3;
+
 	    }
 	    break;
 	    default:
@@ -344,15 +329,12 @@ void ring_det_isr(){
 }
 
 void pick_up_det_isr(){
-//  uint8_t pinstate = HAL_GPIO_ReadPin(PICK_UP_DET_GPIO_Port, PICK_UP_DET_Pin)==1? 1:0;
-//  if (pinstate){
-////	  state_machine=0;
-//	  ringDet.state=0;
-//
-//  }
+// do nothing dont care
 }
 
 void signal_read_isr(){
+	//getting the period of the signal, if the signal is between the ringing signal
+	//and the number of good periods is higher the count, set the state to 1
 	signalPin.period = timecount - signalPin.last_time_change;
 	signalPin.last_time_change = timecount;
 	if (signalPin.period>MIN_PERIOD && signalPin.period<MAX_PERIOD){
@@ -409,15 +391,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			  if (state_machine == 0){
 			    if (ringDet.state == 1){
 			      if (!ringPinState && timecount - ringDet.last_time_change> RING_TIMEOUT){
+			    	  //if the pin is low and has a timeout then restart its state
 			        ringDet.state = 0;
 
 			      }
 			    }
 			  }
-//			if (timecount%1000==0){
-//				HAL_GPIO_TogglePin(PICK_UP_OUT_GPIO_Port, PICK_UP_OUT_Pin);
-//			}
+
 			  if ((timecount - signalPin.last_time_change>RING_TIMEOUT)){ //timeout signal ringing
+				  // if the last time signal change has timeout, reset signal pin
+				  //and if the ringDet state was 1 then needs to be cleared
 				  signalPin.state=0;
 				  signalPin.count=0;
 				  if (ringDet.state == 1){
