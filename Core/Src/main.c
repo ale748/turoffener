@@ -146,7 +146,17 @@ int main(void)
 	  }else{
 
 		  switch (state_machine){
-			case 0:
+			case 0: {
+                uint8_t pinstate = HAL_GPIO_ReadPin(PICK_UP_DET_GPIO_Port, PICK_UP_DET_Pin) == 1 ? 1 : 0;
+                if (pinstate && !ringDet.state){
+                    ringDet.first_time_change = timecount;
+                    ringDet.state = 1;
+                }else if(!pinstate && ringDet.state){
+                    //if the ring detect falls start counter to time out
+                    ringDet.last_time_change = timecount;
+
+                }
+            }
 			if (ringDet.state){
 			  if (timecount-ringDet.first_time_change > RING_TIME){
 				state_machine = 1;
@@ -350,13 +360,13 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t pin){
 	if (swdtime){
 		switch(pin){
 			case RING_DET_Pin:
-				ring_det_isr();
+				//ring_det_isr();
 				break;
 			case PICK_UP_DET_Pin:
-				pick_up_det_isr();
+				//pick_up_det_isr();
 				break;
 			case SIGNAL_READ_Pin:
-				signal_read_isr();
+				//signal_read_isr();
 			default:
 				break;
 
@@ -369,13 +379,13 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin){
 		switch(GPIO_Pin){
 
 			case RING_DET_Pin:
-				ring_det_isr();
+				//ring_det_isr();
 				break;
 			case PICK_UP_DET_Pin:
-				pick_up_det_isr();
+				//pick_up_det_isr();
 				break;
 			case SIGNAL_READ_Pin:
-				signal_read_isr();
+				//signal_read_isr();
 			default:
 				break;
 		}
@@ -404,7 +414,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				  signalPin.state=0;
 				  signalPin.count=0;
 				  if (ringDet.state == 1){
-					  ringDet.state = 0;
+					 // ringDet.state = 0;
 				  }
 			  }
 		}
