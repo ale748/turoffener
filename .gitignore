@@ -1,2 +1,10 @@
 
 Debug/
+
+cmake-build-debug/Testing/Temporary/
+
+cmake-build-debug/CMakeFiles/
+
+cmake-build-debug/
+
+.idea/
